@@ -1,0 +1,17 @@
+15/6/18 
+IStreamSink - interafce to stream bytes to a sink, will be implemented by wav file sink, sockets sinks.
+StreamWriter - Glue between the ring buffer and stream sink
+TODO next - implement wav file sink and record audio from device.
+            implement IComposer that will compose the configuration of device,sr,bit rate,call back,sink etc.
+
+17/6/18 - 
+WavFileSink - started implementing a sink for wav file.
+TODO - wav sink need to perform swap from tmp file on close.
+       implement composer.
+       unit test.  
+
+18/6/16 - 
+Composer - need to implement switch case on typeid in order to choose enum of sf
+TODO - wav sink need to perform swap from tmp file on close.
+       implement typeid in  composer.
+       unit test.  
