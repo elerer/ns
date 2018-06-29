@@ -15,3 +15,8 @@ Composer - need to implement switch case on typeid in order to choose enum of sf
 TODO - wav sink need to perform swap from tmp file on close.
        implement typeid in  composer.
        unit test.  
+       Sinks should have ringbuffer and run a thread to stream as well.(26/6) 
+
+29/6
+TODO - multiple parrallel sinks 
+       how to choose specific inputs from device

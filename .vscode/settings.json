@@ -33,6 +33,16 @@
         "sstream": "cpp",
         "thread": "cpp",
         "tuple": "cpp",
-        "utility": "cpp"
+        "utility": "cpp",
+        "atomic": "cpp",
+        "cmath": "cpp",
+        "condition_variable": "cpp",
+        "cstdarg": "cpp",
+        "cstring": "cpp",
+        "deque": "cpp",
+        "iomanip": "cpp",
+        "mutex": "cpp",
+        "numeric": "cpp",
+        "cinttypes": "cpp"
     }
 }

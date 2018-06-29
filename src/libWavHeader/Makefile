@@ -1,7 +1,7 @@
 INCLUDES = ../../include
 LIBS = 
 LIBS_PATH = 
-SRC = WavHeader.cpp 
+SRC = WavHeader.cpp WavHeaderTemplate.cpp
 OBJECTS = $(SRC:.cpp=.o)    
 FLAGS = -c -Wall -Werror -fpic -std=c++14 -g
 

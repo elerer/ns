@@ -7,6 +7,7 @@ class IStreamSink
 public:
   virtual ~IStreamSink() {}
   virtual void StreamBytes(char *src, const size_t &num) = 0;
+  virtual void Run() = 0;
   virtual void Close() = 0; 
 };
 #endif

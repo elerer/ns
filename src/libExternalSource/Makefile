@@ -1,6 +1,6 @@
 INCLUDES = ../../include
-LIBS = portaudio
-LIBS_PATH = /home/eranl/portaudio/lib/.libs/
+LIBS = -lportaudio -lwavheader
+LIBS_PATH = -L/home/eranl/portaudio/lib/.libs/ -L/home/eranl/go/src/github.com/ElExternalAudioSource/src/libWavHeader
 SRC = AudioInterfaceManager.cpp StreamCallbacks.cpp
 OBJECTS = $(SRC:.cpp=.o)    
 FLAGS = -c -Wall -Werror -fpic -std=c++14 -g
@@ -11,4 +11,4 @@ shared : build
 	gcc -shared -o libelexternalsource.so $(OBJECTS)
 
 build:
-	g++ -I$(INCLUDES) $(FLAGS) $(SRC) -L$(LIBS_PATH) -l$(LIBS)
+	g++ -I$(INCLUDES) $(FLAGS) $(SRC) $(LIBS_PATH) $(LIBS)

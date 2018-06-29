@@ -18,7 +18,7 @@ class SimpleBufferedProxy : public IBufferedProxyProcessor<T>
 
     virtual int WriteAvailable() override;
 
-  public: /*members*/
+  private: /*members*/
     boost::lockfree::spsc_queue<T, boost::lockfree::capacity<N>> _ringBuffer;
 };
 

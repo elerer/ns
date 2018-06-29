@@ -21,7 +21,7 @@ class StreamWriter
   private:
     //shared with callback
     std::unique_ptr<IBufferedProxyProcessor<T>> _ringBuffer;
-    std::unique_ptr<IStreamSink> _sink;
+    IStreamSink *_sink = nullptr;
     std::unique_ptr<char[]> _bytes;
     //manged by the unique_ptr
     char *_pBytes;
@@ -36,7 +36,7 @@ StreamWriter<T, N>::StreamWriter(IBufferedProxyProcessor<T> *rb, IStreamSink *si
     _elemSize = sizeof(T);
     _numelems = N;
     _ringBuffer.reset(rb);
-    _sink.reset(sink);
+    _sink = sink;
     _pBytes = new char[_elemSize * _numelems];
     _bytes.reset(_pBytes);
 }
@@ -63,7 +63,6 @@ void StreamWriter<T, N>::RunFor(size_t i)
     {
         if (ConsumeAndWrite() > 0) i--;
     }
-    _sink->Close();
 }
 
 template <typename T, size_t N>
