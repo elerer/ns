@@ -71,7 +71,7 @@ size_t StreamWriter<T, N>::ConsumeAndWrite()
     size_t numread = 0;
     numread = _ringBuffer->Pop((T *)_pBytes, _numelems);
     if (numread > 0)
-        StreamBytes(numread);
+        StreamBytes(numread * sizeof(T));
     return numread;
 }
 

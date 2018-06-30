@@ -1,5 +1,6 @@
 #include <WavHeaderTemplate.h>
 #include <fstream>
+#include<iostream>
 
 WavHeaderTemplate::WavHeaderTemplate(const std::string &templateSource)
 {
@@ -17,6 +18,12 @@ void WavHeaderTemplate::SetTemplate(const size_t &nc, const size_t &sr, const si
     setBitRate(bitrate);
     _wavHeader._ByteRate = nc * sr * bitrate / 8;
     setAudioSize(audioByteSize);
+    _wavHeader._BlockAlign = nc * bitrate / 8;
+    std::cout << "set wave header -\n num channels " << nc << " | sample rate " << sr << " | bitrate " << bitrate 
+               << " | \n size of header " << sizeof(Wav_header) << "\n";
+               
+    _wavHeader.printHeader();
+     
 }
 
 void WavHeaderTemplate::setNumChannels(const size_t &nc)

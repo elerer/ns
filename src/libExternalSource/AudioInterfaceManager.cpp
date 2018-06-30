@@ -71,6 +71,8 @@ bool AudioInterfaceManager::SetStreamFromDevice(StreamConfData &scd)
     inputParameters.suggestedLatency = Pa_GetDeviceInfo(scd._deviceNum)->defaultLowInputLatency;
     inputParameters.hostApiSpecificStreamInfo = NULL;
 
+    std::cout << "set following stream:\n num channels -" << scd._numChannels << " sample format -"
+        << scd._sf <<" latency -" << inputParameters.suggestedLatency << "\n";
 
     auto err = Pa_OpenStream(
         &scd._stream,
@@ -133,6 +135,13 @@ void AudioInterfaceManager::SetStreamConfiguration(const int &deviceNum, const i
 bool AudioInterfaceManager::StartStream(StreamConfData &scd)
 {
     auto err = Pa_StartStream( scd._stream );
+    HandlePortAudioError(err);
+    return err == paNoError;
+}
+
+bool AudioInterfaceManager::CloseStream(StreamConfData &scd)
+{
+    auto err = Pa_CloseStream( scd._stream );
     HandlePortAudioError(err);
     return err == paNoError;
 }

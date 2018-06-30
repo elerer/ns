@@ -37,6 +37,7 @@ class AudioInterfaceManager
     //not starting the stream
     bool SetStreamFromDevice(StreamConfData &scd);
     bool StartStream(StreamConfData &scd);
+    bool CloseStream(StreamConfData &scd);
     static void HandlePortAudioError(const PaError &err);
 
   private:

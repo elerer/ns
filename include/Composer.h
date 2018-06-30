@@ -10,24 +10,36 @@
 #include <WavFileSink.h>
 #include <atomic>
 #include <thread>
+#include <ctime>
+#include <sstream>
+
+class IComposer
+{
+  public:
+    virtual ~IComposer() {}
+    virtual void ComposeStereoToWav() = 0;
+    virtual void StartStreamToSinks() = 0;
+    virtual void StartFor(const size_t &f) = 0; 
+    virtual void Close() = 0;
+};
 
 template <typename T, int N>
-class Composer
+class Composer : public IComposer
 {
   public:
     Composer();
-    void ComposeStereoToWav();
+    void ComposeStereoToWav() override;
     void ComposeStereoToWebSocket(IStreamSink *ws);
     //TODO composition of multiple sinks
-    void Start();
-    void StartFor(const size_t &f);
+    void StartFor(const size_t &f) override;
     void StartStreamToSinks();
-    void Close();
+    void Close() override;
     std::atomic_bool _continue;
 
   private: /*methods*/
     void letUserSelectDevice();
     void setSampleFormat();
+    void setCallBack();
 
   private:
     AudioInterfaceManager _aif;
@@ -36,6 +48,8 @@ class Composer
     std::unique_ptr<IStreamSink> _sink;
     size_t _deviceNum = 0;
     AudioInterfaceManager::SampleFormat _sf = AudioInterfaceManager::eInt16;
+    std::string _wavFileName = "date_";
+    PaStreamCallback* _cb;
 };
 
 template <typename T, int N>
@@ -43,19 +57,26 @@ Composer<T, N>::Composer()
 {
     _continue = true;
     setSampleFormat();
+    setCallBack();
     _aif.InitInterface();
 }
 
 template <typename T, int N>
 void Composer<T, N>::ComposeStereoToWav()
 {
+    std::time_t result = std::time(nullptr);
+    std::stringstream s;
+    s << result;
+    std::string ts = s.str();
+    std::string wfn = _wavFileName + ts + ".wav";
     letUserSelectDevice();
     _aif.ListDeviceInformation(_deviceNum);
     IBufferedProxyProcessor<T> *rb = new SimpleBufferedProxy<T, N>();
-    IStreamSink *ss = new WavFileSink(2, DEFAULT_SAMPLE_RATE, sizeof(T));
+    IStreamSink *ss = new WavFileSink(2, DEFAULT_SAMPLE_RATE, sizeof(T) * 8, wfn, "/var/tmp/", "/home/eranl/WAV_FILES/");
     _streamWriter.reset(new StreamWriter<T, N>(rb, ss));
+    _sink.reset(ss);
 
-    _aif.SetStreamConfiguration(_deviceNum, 2, _sf, DEFAULT_SAMPLE_RATE, Int16ProxyInputSource, 1024, _scd, rb);
+    _aif.SetStreamConfiguration(_deviceNum, 2, _sf, DEFAULT_SAMPLE_RATE, _cb, 1024, _scd, rb);
     _aif.SetStreamFromDevice(_scd);
 }
 
@@ -68,35 +89,60 @@ void Composer<T, N>::ComposeStereoToWebSocket(IStreamSink *ws)
     IBufferedProxyProcessor<T> *rb = new SimpleBufferedProxy<T, N>();
     _streamWriter.reset(new StreamWriter<T, N>(rb, ws));
 
-    _aif.SetStreamConfiguration(_deviceNum, 2, _sf, DEFAULT_SAMPLE_RATE, Int16ProxyInputSource, 1024, _scd, rb);
+    _aif.SetStreamConfiguration(_deviceNum, 2, _sf, DEFAULT_SAMPLE_RATE, _cb, 1024, _scd, rb);
     _aif.SetStreamFromDevice(_scd);
+}
+
+template <typename T, int N>
+void Composer<T, N>::setCallBack()
+{
+    switch (_sf)
+    {
+    case AudioInterfaceManager::eInt16:
+        std::cout << "setting callback of 16bit\n";
+        _cb = Int16ProxyInputSource;
+        break;
+    case AudioInterfaceManager::eInt24:
+        std::cout << "setting callback of 24bit\n";
+        _cb = Int24ProxyInputSource;
+        break;
+    default:
+        break;
+    }
 }
 
 template <typename T, int N>
 void Composer<T, N>::setSampleFormat()
 {
+    std::cout << "Set sample Format - size of T " << sizeof(T) << "\n";
     if (std::is_floating_point<T>::value)
     {
+        std::cout << "T is float";
         _sf = AudioInterfaceManager::eFloat;
     }
-    if (std::is_integral<T>::value)
+    else
     {
         auto s = sizeof(T);
         switch (s)
         {
-        case 8:
+        case 1:
             _sf = AudioInterfaceManager::eInt8;
+            std::cout << "setting AudioInterfaceManager::eInt8 \n";
             break;
-        case 16:
+        case 2:
             _sf = AudioInterfaceManager::eInt16;
+            std::cout << "setting AudioInterfaceManager::eInt16 \n";
             break;
-        case 24:
+        case 3:
             _sf = AudioInterfaceManager::eInt24;
+            std::cout << "setting AudioInterfaceManager::eInt24 \n";
             break;
-        case 32:
+        case 4:
             _sf = AudioInterfaceManager::eInt32;
+            std::cout << "setting AudioInterfaceManager::eInt32 \n";
             break;
         default:
+            std::cout << "DEFAULT \n";
             break;
         }
     }
@@ -116,7 +162,6 @@ template <typename T, int N>
 void Composer<T, N>::StartFor(const size_t &f)
 {
     _aif.StartStream(_scd);
-    std::thread t();
     _streamWriter->RunFor(f); //TODO for now runfor instead of run
 }
 
@@ -135,7 +180,8 @@ template <typename T, int N>
 void Composer<T, N>::Close()
 {
     _continue = false;
-    _streamWriter->Close();
+    _aif.CloseStream(_scd);
+    // _streamWriter->Close();
     _sink->Close();
     //TODO what else we need to clean ? portaudio ? callback ?
 }

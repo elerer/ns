@@ -20,3 +20,5 @@ TODO - wav sink need to perform swap from tmp file on close.
 29/6
 TODO - multiple parrallel sinks 
        how to choose specific inputs from device
+       http://www.mega-nerd.com/libsndfile/api.html --- look if it can be used
+
