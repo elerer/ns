@@ -19,7 +19,8 @@ class IComposer
     virtual ~IComposer() {}
     virtual void ComposeStereoToWav() = 0;
     virtual void StartStreamToSinks() = 0;
-    virtual void StartFor(const size_t &f) = 0; 
+    virtual void SetStream() = 0;
+    virtual void StartFor(const size_t &f) = 0;
     virtual void Close() = 0;
 };
 
@@ -35,6 +36,7 @@ class Composer : public IComposer
     void StartStreamToSinks();
     void Close() override;
     std::atomic_bool _continue;
+    void SetStream();
 
   private: /*methods*/
     void letUserSelectDevice();
@@ -45,11 +47,12 @@ class Composer : public IComposer
     AudioInterfaceManager _aif;
     AudioInterfaceManager::StreamConfData _scd;
     std::unique_ptr<StreamWriter<T, N>> _streamWriter; //owner simple buffer
-    std::unique_ptr<IStreamSink> _sink;
+    std::vector<std::unique_ptr<IStreamSink>> _sinks;
     size_t _deviceNum = 0;
     AudioInterfaceManager::SampleFormat _sf = AudioInterfaceManager::eInt16;
     std::string _wavFileName = "date_";
-    PaStreamCallback* _cb;
+    PaStreamCallback *_cb = nullptr;
+    IBufferedProxyProcessor<T> *_rb = nullptr;
 };
 
 template <typename T, int N>
@@ -59,6 +62,8 @@ Composer<T, N>::Composer()
     setSampleFormat();
     setCallBack();
     _aif.InitInterface();
+    _rb = new SimpleBufferedProxy<T, N>();
+    _streamWriter.reset(new StreamWriter<T, N>(_rb));
 }
 
 template <typename T, int N>
@@ -71,25 +76,24 @@ void Composer<T, N>::ComposeStereoToWav()
     std::string wfn = _wavFileName + ts + ".wav";
     letUserSelectDevice();
     _aif.ListDeviceInformation(_deviceNum);
-    IBufferedProxyProcessor<T> *rb = new SimpleBufferedProxy<T, N>();
     IStreamSink *ss = new WavFileSink(2, DEFAULT_SAMPLE_RATE, sizeof(T) * 8, wfn, "/var/tmp/", "/home/eranl/WAV_FILES/");
-    _streamWriter.reset(new StreamWriter<T, N>(rb, ss));
-    _sink.reset(ss);
-
-    _aif.SetStreamConfiguration(_deviceNum, 2, _sf, DEFAULT_SAMPLE_RATE, _cb, 1024, _scd, rb);
-    _aif.SetStreamFromDevice(_scd);
+    _streamWriter->AddSink(ss);
+    _sinks.push_back(std::move(std::unique_ptr<IStreamSink>(ss)));
 }
 
 template <typename T, int N>
 void Composer<T, N>::ComposeStereoToWebSocket(IStreamSink *ws)
 {
-    _sink.reset(ws);
+    _streamWriter->AddSink(ws);
+    _sinks.push_back(std::unique_ptr<IStreamSink>(ws));
     letUserSelectDevice();
     _aif.ListDeviceInformation(_deviceNum);
-    IBufferedProxyProcessor<T> *rb = new SimpleBufferedProxy<T, N>();
-    _streamWriter.reset(new StreamWriter<T, N>(rb, ws));
+}
 
-    _aif.SetStreamConfiguration(_deviceNum, 2, _sf, DEFAULT_SAMPLE_RATE, _cb, 1024, _scd, rb);
+template <typename T, int N>
+void Composer<T, N>::SetStream()
+{
+    _aif.SetStreamConfiguration(_deviceNum, 2, _sf, DEFAULT_SAMPLE_RATE, _cb, 1024, _scd, _rb);
     _aif.SetStreamFromDevice(_scd);
 }
 
@@ -170,10 +174,13 @@ void Composer<T, N>::StartStreamToSinks()
 {
     _aif.StartStream(_scd);
     std::thread tsw(&StreamWriter<T, N>::Run, _streamWriter.get());
-    std::thread tsink(&IStreamSink::Run, _sink.get());
-
     tsw.detach();
-    tsink.detach();
+
+    for (auto& unique_sink : _sinks)
+    {
+        std::thread tsink(&IStreamSink::Run, unique_sink.get());
+        tsink.detach();
+    }
 }
 
 template <typename T, int N>
@@ -182,7 +189,11 @@ void Composer<T, N>::Close()
     _continue = false;
     _aif.CloseStream(_scd);
     // _streamWriter->Close();
-    _sink->Close();
+    for (auto& unique_sink : _sinks)
+    {
+        unique_sink->Close();
+    }
+
     //TODO what else we need to clean ? portaudio ? callback ?
 }
 

@@ -4,24 +4,27 @@
 #include <IStreamSink.h>
 #include <memory>
 #include <atomic>
-
+#include <vector>
 //Glue between the ring buffer and stream sink
 template <typename T, size_t N>
 class StreamWriter
 {
   public:
-    StreamWriter(IBufferedProxyProcessor<T> *rb, IStreamSink *sink);
+    StreamWriter(IBufferedProxyProcessor<T> *rb);
     void StreamBytes(const size_t &num);
     size_t ConsumeAndWrite();
     //Run this class as thread
     void Run();
     void RunFor(size_t i);
+    void AddSink(IStreamSink *s);
+
     std::atomic<bool> _continue;
 
   private:
     //shared with callback
     std::unique_ptr<IBufferedProxyProcessor<T>> _ringBuffer;
-    IStreamSink *_sink = nullptr;
+
+    std::vector<IStreamSink*> _sinks;
     std::unique_ptr<char[]> _bytes;
     //manged by the unique_ptr
     char *_pBytes;
@@ -31,12 +34,11 @@ class StreamWriter
 };
 
 template <typename T, size_t N>
-StreamWriter<T, N>::StreamWriter(IBufferedProxyProcessor<T> *rb, IStreamSink *sink) : _continue(true)
+StreamWriter<T, N>::StreamWriter(IBufferedProxyProcessor<T> *rb) : _continue(true)
 {
     _elemSize = sizeof(T);
     _numelems = N;
     _ringBuffer.reset(rb);
-    _sink = sink;
     _pBytes = new char[_elemSize * _numelems];
     _bytes.reset(_pBytes);
 }
@@ -44,7 +46,10 @@ StreamWriter<T, N>::StreamWriter(IBufferedProxyProcessor<T> *rb, IStreamSink *si
 template <typename T, size_t N>
 void StreamWriter<T, N>::StreamBytes(const size_t &num)
 {
-    _sink->StreamBytes(_pBytes, num);
+    for (auto sink : _sinks)
+    {
+        sink->StreamBytes(_pBytes, num);
+    }
 }
 
 template <typename T, size_t N>
@@ -61,7 +66,8 @@ void StreamWriter<T, N>::RunFor(size_t i)
 {
     while (i > 0)
     {
-        if (ConsumeAndWrite() > 0) i--;
+        if (ConsumeAndWrite() > 0)
+            i--;
     }
 }
 
@@ -75,4 +81,9 @@ size_t StreamWriter<T, N>::ConsumeAndWrite()
     return numread;
 }
 
+template <typename T, size_t N>
+void StreamWriter<T, N>::AddSink(IStreamSink *s)
+{
+    _sinks.push_back(s);
+}
 #endif

@@ -44,5 +44,6 @@
         "mutex": "cpp",
         "numeric": "cpp",
         "cinttypes": "cpp"
-    }
+    },
+    "cquery.cacheDirectory": "${workspaceFolder}/.vscode/cquery_cached_index/"
 }

@@ -6,7 +6,7 @@
 #include <SimpleBufferedProxy.h>
 #include <atomic>
 
-template <int N>//TODO maybe size should be dynamic ?
+template <int N> //TODO maybe size should be dynamic ?
 class WebSocketSink : public IStreamSink
 {
 public:
@@ -14,20 +14,21 @@ public:
   void StreamBytes(char *src, const size_t &num) override;
   void Close() override;
   void Run();
-  std::atomic_bool _continue ;
-  std::atomic_int _chunkSize ;
+  std::atomic_bool _continue;
+  std::atomic_int _chunkSize;
+  bool _streamZeros = true;
 
 private: /*members*/
   websocketpp::server<websocketpp::config::asio> *_server;
   websocketpp::connection_hdl _hdl;
   SimpleBufferedProxy<char, N> _buffer;
-  char _chunkBuffer[N]; //TODO decide value
+  char _chunkBuffer[N];      //TODO decide value
+  char _zeroBuffer[N] = {0}; //TODO decide value
 };
 
 template <int N>
-WebSocketSink<N>::WebSocketSink(websocketpp::server<websocketpp::config::asio> *server, websocketpp::connection_hdl hdl):
-    _server(server),
-    _hdl(hdl)
+WebSocketSink<N>::WebSocketSink(websocketpp::server<websocketpp::config::asio> *server, websocketpp::connection_hdl hdl) : _server(server),
+                                                                                                                           _hdl(hdl)
 {
   _chunkSize = 1024;
   _continue = true;
@@ -52,11 +53,10 @@ void WebSocketSink<N>::Run()
     }
     if (_buffer.ReadAvailable() < _chunkSize)
     {
-      continue;//TODO sleep?? 
+      continue; //TODO sleep?? maybe set to smaller value till buffer fills again to desired chunk
     }
-    _buffer.Pop(_chunkBuffer,_chunkSize);
-    _server->send(_hdl, _chunkBuffer, _chunkSize.load()
-    , websocketpp::frame::opcode::binary);
+    _buffer.Pop(_chunkBuffer, _chunkSize);
+    _server->send(_hdl, _streamZeros ? _zeroBuffer :  _chunkBuffer, _chunkSize.load(), websocketpp::frame::opcode::binary);
   }
 }
 
